@@ -5,11 +5,33 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>QuotePilot · AI Estimating Workspace</title>
 <link rel="stylesheet" href="assets/styles.css">
+<style>
+#boot-state{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f4f7fb;color:#172238;font:14px system-ui,sans-serif}
+#boot-state .box{max-width:760px;width:100%;background:#fff;border:1px solid #e4eaf2;border-radius:18px;padding:28px;box-shadow:0 12px 30px rgba(15,23,42,.07)}
+#boot-state h1{margin:0 0 8px;font-size:24px}#boot-state p{color:#748196;line-height:1.55}
+#boot-state code{display:block;margin-top:14px;padding:12px;border-radius:10px;background:#0f172a;color:#dbeafe;white-space:pre-wrap;word-break:break-word;font-size:12px}
+</style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><div id="boot-state"><div class="box"><h1>QuotePilot</h1><p>Loading workspace…</p></div></div></div>
 <div id="toast-root"></div>
-<script src="assets/integrations.js"></script>
-<script src="assets/app.js"></script>
+<script>
+(function(){
+  function show(title,message){
+    var app=document.getElementById("app");
+    if(!app)return;
+    app.innerHTML='<div id="boot-state"><div class="box"><h1>'+title+'</h1><p>The application could not start normally.</p><code>'+String(message||"Unknown startup error").replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]||c})+'</code></div></div>';
+  }
+  window.__quotePilotBootError=show;
+  window.addEventListener("error",function(e){
+    if(e&&e.message) show("QuotePilot startup error",e.message+"\n"+(e.filename||""));
+  });
+  window.addEventListener("unhandledrejection",function(e){
+    var r=e&&e.reason; show("QuotePilot startup error",r&&r.message?r.message:String(r||"Unhandled promise rejection"));
+  });
+})();
+</script>
+<script src="assets/integrations.js" defer onerror="window.__quotePilotBootError('QuotePilot asset error','Failed to load assets/integrations.js')"></script>
+<script src="assets/app.js" defer onerror="window.__quotePilotBootError('QuotePilot asset error','Failed to load assets/app.js')"></script>
 </body>
 </html>
