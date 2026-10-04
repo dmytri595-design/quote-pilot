@@ -26,3 +26,6 @@ The AI layer is simulated in this demo. No external API credentials are stored i
 Enable GitHub Pages from **Settings → Pages → Deploy from branch → main → /(root)**.
 
 Repository: https://github.com/dmytri595-design/quote-pilot
+
+
+<!-- Pages deployment trigger checked on 2026-10-04 -->
