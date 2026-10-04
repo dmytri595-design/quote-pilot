@@ -3,7 +3,7 @@
   const KEY = "quotepilot-v050";
   const uid = (p="id") => p + "-" + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
   const now = () => new Date().toISOString();
-  const money = (n, currency="USD") => new Intl.NumberFormat("en-US",{style:"currency",currency}).format(Number(n)||0);
+  const money = (n, currency="USD") => { try { return new Intl.NumberFormat("en-US",{style:"currency",currency}).format(Number(n)||0); } catch { return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(n)||0); } };
   const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
   const initial = {
     version:"0.5.0",
@@ -49,12 +49,32 @@
     invoices:[]
   };
   let state = load();
-  function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||"null");return s?{...initial,...s,settings:{...initial.settings,...s.settings}}:initial}catch{return initial}}
-  function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+  function normalizeState(s){
+    const x=s&&typeof s==="object"?s:{};
+    return {
+      ...initial,
+      ...x,
+      settings:{...initial.settings,...(x.settings&&typeof x.settings==="object"?x.settings:{})},
+      customers:Array.isArray(x.customers)?x.customers:initial.customers,
+      services:Array.isArray(x.services)?x.services:initial.services,
+      quotes:Array.isArray(x.quotes)?x.quotes.map(q=>({...q,items:Array.isArray(q.items)?q.items:[]})):initial.quotes,
+      invoices:Array.isArray(x.invoices)?x.invoices:[]
+    };
+  }
+  function load(){
+    try{
+      const raw=localStorage.getItem(KEY);
+      return raw?normalizeState(JSON.parse(raw)):normalizeState(initial);
+    }catch{return normalizeState(initial)}
+  }
+  function save(){
+    try{localStorage.setItem(KEY,JSON.stringify(state));return true}
+    catch(e){if(window.__quotePilotBootError)window.__quotePilotBootError("QuotePilot storage error",e.message||String(e));return false}
+  }
   function route(){return(location.hash||"#dashboard").slice(1).split("/")}
   function customer(id){return state.customers.find(c=>c.id===id)}
   function quote(id){return state.quotes.find(q=>q.id===id)}
-  function subtotal(q){return q.items.reduce((s,i)=>s+(+i.qty||0)*(+i.rate||0),0)}
+  function subtotal(q){return (Array.isArray(q&&q.items)?q.items:[]).reduce((s,i)=>s+(+i.qty||0)*(+i.rate||0),0)}
   function totals(q){const sub=subtotal(q),disc=sub*(+q.discount||0)/100,tax=(sub-disc)*(+q.tax||0)/100;return{sub,disc,tax,total:sub-disc+tax}}
   function statusTag(s){const m={draft:["Draft","amber"],sent:["Sent","blue"],accepted:["Accepted","green"],expired:["Expired","red"],invoiced:["Invoiced","purple"],ready:["Ready","blue"],paid:["Paid","green"]};const a=m[s]||[s,"gray"];return'<span class="tag '+a[1]+'">'+a[0]+"</span>"}
   function toast(msg){const r=document.getElementById("toast-root"),e=document.createElement("div");e.className="toast";e.textContent=msg;r.appendChild(e);setTimeout(()=>e.remove(),1800)}
@@ -78,12 +98,29 @@
   function settingsView(){return shell("Settings","Company, quote defaults and data controls",pageHead("Settings","All settings currently stay in this browser.",'<button class="btn primary" id="settings-save">Save settings</button>')+'<div class="grid g2">'+card("Company profile","Business identity",input("Business name","st-business",state.settings.businessName)+input("Email","st-email",state.settings.email)+input("Phone","st-phone",state.settings.phone)+select("Currency","st-currency",state.settings.currency,["USD","EUR","NOK"]))+card("Quote defaults","Applied to new estimates",input("Default tax %","st-tax",state.settings.taxRate,"number")+input("Validity days","st-valid",state.settings.validityDays,"number")+input("Next quote number","st-next",state.settings.nextQuote,"number"))+card("Local data","Backup and restore",'<button class="btn" id="export-data">Export backup</button> <button class="btn" id="import-data">Import backup</button><div class="callout"><b>Storage</b><p>localStorage now; swap the storage adapter for a server database later.</p></div>')+card("Security boundary","Production requirements",'<div class="list"><div class="list-row"><b>API secrets</b>'+statusTag("expired")+'</div><div class="list-row"><b>AI key</b>'+statusTag("expired")+'</div><div class="list-row"><b>Email credentials</b>'+statusTag("expired")+'</div><div class="list-row"><b>Payment secret</b>'+statusTag("expired")+'</div></div>')+"</div>")}
   function integrationsView(){return shell("Integrations","Prepared production contracts",pageHead("Integrations","Only server-side providers and credentials remain to be connected.",'<a class="btn" href="#settings">Settings</a>')+'<div class="grid g2">'+card("AI / Quote extraction","Mock adapter",'<p>Extract scope, quantities, labor, materials and assumptions from natural-language job descriptions.</p><pre class="contract">QuotePilotAdapters.ai.extractQuote(input, context)</pre>')+card("Email delivery","Mock adapter",'<p>Send the approved quote through a server-side email provider.</p><pre class="contract">QuotePilotAdapters.email.sendQuote(payload)</pre>')+card("Payments","Mock adapter",'<p>Create a hosted payment link after invoice approval.</p><pre class="contract">QuotePilotAdapters.payments.createPaymentLink(payload)</pre>')+card("Database","Local adapter",'<p>Replace localStorage with a secure database provider.</p><pre class="contract">QuotePilotAdapters.storage.save(key, value)</pre>')+'</div>'+card("Production architecture","Recommended request path",'<div class="flow"><b>Browser</b><span>→</span><b>Backend API</b><span>→</span><b>AI / pricing / email / payments</b><span>→</span><b>Database</b></div><p>Do not place provider secrets in the static site.</p>'))}
   function quoteDetail(id){const q=quote(id);if(!q){location.hash="quotes";return""}const c=customer(q.customerId),t=totals(q);return shell(q.number,"Quote detail · "+esc(c?.name||"Customer"),pageHead(q.number,esc(q.service),'<a class="btn" href="#quotes">← Quotes</a><button class="btn" id="detail-print">Print / PDF</button><button class="btn primary" id="advance-quote">Next stage</button>')+'<div class="stepper"><b>'+q.status.toUpperCase()+'</b><span>→</span><span>Review</span><span>→</span><span>Send</span><span>→</span><span>Accepted</span></div><div class="grid g3">'+kpi("Quote total",money(t.total,state.settings.currency),"Calculated","blue")+kpi("Customer",esc(c?.name||"—"),"","green")+kpi("Tax",money(t.tax,state.settings.currency),q.tax+"%","orange")+'</div>'+card("Scope & assumptions","Review before delivery",'<div class="callout"><b>Service:</b> '+esc(q.service)+'<br><b>Notes:</b> '+esc(q.notes||"—")+'</div><div class="extract"><div><small>Scope status</small><b>Review ready</b></div><div><small>AI confidence</small><b>91%*</b></div><div><small>Human approval</small><b>Required</b></div></div>')+card("Customer","Contact information",'<div class="person"><b>'+esc(c?.name||"—")+'</b><small>'+esc(c?.email||"")+'</small><small>'+esc(c?.phone||"")+'</small><small>'+esc(c?.address||"")+"</small></div>")+card("Line items","Calculated totals",'<div class="table-wrap"><table><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>'+q.items.map(i=>'<tr><td>'+esc(i.description)+'</td><td>'+i.qty+" "+esc(i.unit)+"</td><td>"+money(i.rate,state.settings.currency)+"</td><td>"+money(i.qty*i.rate,state.settings.currency)+"</td></tr>").join("")+'</tbody><tfoot><tr><th colspan="3">Subtotal</th><th>'+money(t.sub,state.settings.currency)+'</th></tr><tr><td colspan="3">Tax</td><td>'+money(t.tax,state.settings.currency)+'</td></tr><tr><th colspan="3">Total</th><th>'+money(t.total,state.settings.currency)+"</th></tr></tfoot></table></div>"))}
-  function render(){const r=route(),v=r[0];let html=v==="dashboard"?dashboard():v==="quotes"?quotesView():v==="new"?newView():v==="quote"?quoteDetail(r[1]):v==="customers"?customersView():v==="services"?servicesView():v==="invoices"?invoicesView():v==="analytics"?analyticsView():v==="settings"?settingsView():v==="integrations"?integrationsView():dashboard();document.getElementById("app").innerHTML=html;bind()}
+  function render(){
+    try{
+      const r=route(),v=r[0];
+      let html=v==="dashboard"?dashboard():v==="quotes"?quotesView():v==="new"?newView():v==="quote"?quoteDetail(r[1]):v==="customers"?customersView():v==="services"?servicesView():v==="invoices"?invoicesView():v==="analytics"?analyticsView():v==="settings"?settingsView():v==="integrations"?integrationsView():dashboard();
+      document.getElementById("app").innerHTML=html;
+      bind();
+    }catch(e){
+      const msg=e&&e.stack?e.stack:(e&&e.message?e.message:String(e));
+      if(window.__quotePilotBootError)window.__quotePilotBootError("QuotePilot runtime error",msg);
+      else document.getElementById("app").textContent="QuotePilot runtime error: "+msg;
+    }
+  }
   function bind(){
-    const r=route(),v=r[0];
+    try{
+      const r=route(),v=r[0];
     document.querySelectorAll("[data-toast]").forEach(b=>b.onclick=()=>toast(b.dataset.toast));
     if(v==="quotes")bindQuotes(); if(v==="new")bindNew(); if(v==="customers")bindCustomers(); if(v==="services")bindServices(); if(v==="invoices")bindInvoices(); if(v==="quote")bindDetail(r[1]); if(v==="settings")bindSettings(); if(v==="analytics"){const b=document.querySelector("[data-export]");if(b)b.onclick=exportData}
-    const p=document.getElementById("print-btn");if(p)p.onclick=()=>print()
+      const p=document.getElementById("print-btn");if(p)p.onclick=()=>print();
+    }catch(e){
+      const msg=e&&e.stack?e.stack:(e&&e.message?e.message:String(e));
+      if(window.__quotePilotBootError)window.__quotePilotBootError("QuotePilot binding error",msg);
+      else throw e;
+    }
   }
   function bindQuotes(){const s=document.getElementById("quote-search"),list=document.getElementById("quote-list");const repaint=f=>{let q=state.quotes.filter(x=>f==="all"||x.status===f);const t=s.value.toLowerCase();if(t)q=q.filter(x=>(x.number+" "+x.service+" "+(customer(x.customerId)?.name||"")).toLowerCase().includes(t));list.innerHTML=quoteRows(q)};s.oninput=()=>repaint("all");document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>repaint(b.dataset.filter))}
   function bindNew(){let items=presets.paint.map(x=>({id:uid("i"),description:x[0],qty:x[1],unit:x[2],rate:x[3]}));const tb=document.querySelector("#item-table tbody");
