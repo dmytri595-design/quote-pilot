@@ -22,7 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Validate site files
+        run: |
+          test -f index.html
+          test -f assets/styles.css
+          test -f assets/integrations.js
+          test -f assets/app.js
+          node --check assets/integrations.js
+          node --check assets/app.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
