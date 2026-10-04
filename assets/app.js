@@ -4,7 +4,7 @@
   const uid = (p="id") => p + "-" + Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
   const now = () => new Date().toISOString();
   const money = (n, currency="USD") => new Intl.NumberFormat("en-US",{style:"currency",currency}).format(Number(n)||0);
-  const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[m]));
+  const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
   const initial = {
     version:"0.5.0",
     settings:{businessName:"Northstar Home Services",email:"hello@northstar.example",phone:"+1 (555) 014-2042",currency:"USD",taxRate:8.5,validityDays:30,nextQuote:1043,aiMode:"Mock AI",emailMode:"Mock Email",paymentMode:"Mock Payments"},
@@ -60,7 +60,7 @@
   function toast(msg){const r=document.getElementById("toast-root"),e=document.createElement("div");e.className="toast";e.textContent=msg;r.appendChild(e);setTimeout(()=>e.remove(),1800)}
   function kpi(label,val,foot,color){return'<article class="kpi"><small>'+label+'</small><div class="kpi-icon '+color+'">◆</div><h2>'+val+'</h2><em>'+foot+"</em></article>"}
   function pageHead(h,p,a=""){return'<div class="page-head"><div><h1>'+h+'</h1><p>'+p+'</p></div><div class="actions">'+a+"</div></div>"}
-  function card(t,s,b){return'<article class="card"><div class="card-head"><div><h3>'+t+'</h3><p>'+s+"</p></div></div><div class="card-body">"+b+"</div></article>"}
+  function card(t,s,b){return'<article class="card"><div class="card-head"><div><h3>'+t+'</h3><p>'+s+'</p></div></div><div class="card-body">'+b+'</div></article>'}
   function input(l,id,v,type="text"){return'<label>'+l+'<input id="'+id+'" type="'+type+'" value="'+esc(v)+'"></label>'}
   function select(l,id,v,opts){return'<label>'+l+'<select id="'+id+'">'+opts.map(o=>'<option '+(o===v?"selected":"")+'>'+esc(o)+"</option>").join("")+"</select></label>"}
   const nav=[["dashboard","⌂","Dashboard"],["quotes","▤","Quotes"],["new","✦","New Quote"],["customers","◉","Customers"],["services","▦","Services"],["invoices","▣","Invoices"],["analytics","◴","Analytics"],["settings","⚙","Settings"],["integrations","⌘","Integrations"]];
