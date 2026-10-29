@@ -1,0 +1,41 @@
+name: QuotePilot Browser Smoke
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install --no-save playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Start static site
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/quotepilot-http.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/quotepilot-http.log
+          exit 1
+      - name: Validate source and run browser workflows
+        run: |
+          node --check assets/integrations.js
+          node --check assets/app.js
+          node e2e/smoke.cjs
