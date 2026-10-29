@@ -24,6 +24,9 @@ const assert = require('node:assert/strict');
   assert.match(await page.locator('#toast-root').innerText(), /service type/i);
   assert.match(page.url(), /#new$/);
 
+  // Save the fresh in-memory workspace before editing the persisted counter.
+  await page.locator('#save-local').click();
+
   // A stale nextQuote counter must be normalized above every existing quote number.
   await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem('quotepilot-v050'));
