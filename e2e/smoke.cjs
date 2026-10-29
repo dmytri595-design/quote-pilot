@@ -17,10 +17,24 @@ const assert = require('node:assert/strict');
 
   // A quote must not save when a required field is missing.
   await page.goto(base + '#new', { waitUntil: 'networkidle' });
+  assert.ok((await page.locator('#nq-customer').innerText()).includes('Emma Johnson'), 'customer selector should show names, not internal IDs');
+  assert.equal(await page.locator('#nq-customer').inputValue(), 'c1');
   await page.locator('#nq-service').fill('');
   await page.locator('#save-quote').click();
   assert.match(await page.locator('#toast-root').innerText(), /service type/i);
   assert.match(page.url(), /#new$/);
+
+  // Save the fresh in-memory workspace before editing the persisted counter.
+  await page.locator('#save-local').click();
+
+  // A stale nextQuote counter must be normalized above every existing quote number.
+  await page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem('quotepilot-v050'));
+    state.settings.nextQuote = 1041;
+    localStorage.setItem('quotepilot-v050', JSON.stringify(state));
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('.shell').waitFor();
 
   // Valid quote creation still works after validation.
   await page.locator('#nq-service').fill('QA home service');
@@ -29,13 +43,15 @@ const assert = require('node:assert/strict');
   await page.locator('#nq-tax').fill('8');
   await page.locator('#save-quote').click();
   await page.waitForURL(/#quote\/q-/);
-  const savedQuote = await page.evaluate(() => {
+  const saved = await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem('quotepilot-v050'));
-    return state.quotes[0];
+    return { quote: state.quotes[0], numbers: state.quotes.map(q => q.number) };
   });
-  assert.equal(savedQuote.service, 'QA home service');
-  assert.equal(savedQuote.status, 'draft');
-  assert.ok(savedQuote.items.length > 0);
+  assert.equal(saved.quote.service, 'QA home service');
+  assert.equal(saved.quote.status, 'draft');
+  assert.equal(saved.quote.number, 'QP-1043');
+  assert.equal(new Set(saved.numbers).size, saved.numbers.length, 'quote numbers must remain unique');
+  assert.ok(saved.quote.items.length > 0);
 
   // Editing a customer actually updates the selected record.
   await page.goto(base + '#customers', { waitUntil: 'networkidle' });
