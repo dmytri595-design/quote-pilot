@@ -1,4 +1,4 @@
-# QuotePilot v0.5.0 — full product prototype
+# QuotePilot v0.5.2 — full product prototype
 
 QuotePilot is a browser-based estimating workspace for contractors and service businesses.
 
@@ -14,7 +14,7 @@ QuotePilot is a browser-based estimating workspace for contractors and service b
 - Settings
 - Integration center
 
-## v0.5.0
+## v0.5.2
 - Single application shell with hash routing
 - Browser-local data store with quote/customer/service/invoice records
 - Editable quote line items with automatic subtotal, discount, tax and total calculations
@@ -25,6 +25,11 @@ QuotePilot is a browser-based estimating workspace for contractors and service b
 - Prepared adapter contracts for AI, email, payments and persistence
 - API contract, data model and production checklist
 - GitHub Pages deployment
+
+- Customer dropdowns display readable customer names while retaining stable internal IDs.
+- Quote numbering normalizes against existing quotes and skips already-used numbers to avoid duplicate quote/invoice references.
+- Playwright coverage for customer selection and a stale quote counter.
+- A documented evaluation notice and direct acquisition brief.
 
 The current AI, email and payment layers are intentionally mocked. No provider API keys or real credentials are stored in the repository.
 
@@ -49,3 +54,7 @@ Live site:
 https://dmytri595-design.github.io/quote-pilot/
 
 Deployment is handled by .github/workflows/deploy-pages.yml.
+
+## Direct acquisition package
+
+See [`docs/DIRECT_ACQUISITION_BRIEF.md`](docs/DIRECT_ACQUISITION_BRIEF.md) for the sale scope, included assets, current limitations, handover plan, and rights terms. The root [`LICENSE`](LICENSE) is an evaluation notice, not an open-source license; commercial and production use requires a separate written agreement.
