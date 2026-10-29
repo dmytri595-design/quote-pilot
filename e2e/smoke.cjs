@@ -92,12 +92,15 @@ const assert = require('node:assert/strict');
     mimeType: 'application/json',
     buffer: Buffer.from(backup)
   });
-  await page.waitForFunction(() => {
-    const state = JSON.parse(localStorage.getItem('quotepilot-v050'));
-    return state && state.settings && state.settings.currency === 'USD';
-  });
+  await page.waitForTimeout(500);
+  const importToast = await page.locator('#toast-root').innerText();
+  const restoredState = await page.evaluate(() => JSON.parse(localStorage.getItem('quotepilot-v050')));
+  console.log('Import toast:', importToast);
+  console.log('Restored settings:', JSON.stringify(restoredState && restoredState.settings));
+  assert.match(importToast, /Workspace backup imported/i, 'backup import should show successful completion');
+  assert.equal(restoredState.settings.currency, 'USD');
+  assert.equal(restoredState.settings.taxRate, 100);
   assert.equal(await page.locator('img[src="x"]').count(), 0);
-  assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('quotepilot-v050')).settings.taxRate)), 100);
 
   if (errors.length) throw new Error('Browser errors: ' + errors.join(' | '));
   console.log('QuotePilot smoke PASS: safe state load, quote validation/create, customer/service editing, invoice sync, backup restore.');
