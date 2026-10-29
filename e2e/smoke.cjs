@@ -40,7 +40,12 @@ const assert = require('node:assert/strict');
   // Editing a customer actually updates the selected record.
   await page.goto(base + '#customers', { waitUntil: 'networkidle' });
   const customerValues = ['QA Edited Customer', 'qa-edited@example.com', '+1 555 0100', '42 Test Road'];
-  page.on('dialog', dialog => dialog.accept(customerValues.shift() || ''));
+  const customerDialogHandler = dialog => {
+    const value = customerValues.shift() || '';
+    if (!customerValues.length) page.off('dialog', customerDialogHandler);
+    dialog.accept(value);
+  };
+  page.on('dialog', customerDialogHandler);
   await page.locator('[data-customer]').first().click();
   const editedCustomer = await page.evaluate(() => JSON.parse(localStorage.getItem('quotepilot-v050')).customers[0]);
   assert.equal(editedCustomer.name, 'QA Edited Customer');
@@ -49,7 +54,12 @@ const assert = require('node:assert/strict');
   // Editing a service is functional and validates its numeric rate.
   await page.goto(base + '#services', { waitUntil: 'networkidle' });
   const serviceValues = ['QA Edited Service', '125', 'hour', 'QA Category'];
-  page.on('dialog', dialog => dialog.accept(serviceValues.shift() || ''));
+  const serviceDialogHandler = dialog => {
+    const value = serviceValues.shift() || '';
+    if (!serviceValues.length) page.off('dialog', serviceDialogHandler);
+    dialog.accept(value);
+  };
+  page.on('dialog', serviceDialogHandler);
   await page.locator('[data-edit-service]').first().click();
   const editedService = await page.evaluate(() => JSON.parse(localStorage.getItem('quotepilot-v050')).services[0]);
   assert.equal(editedService.name, 'QA Edited Service');
