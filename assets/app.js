@@ -51,15 +51,48 @@
   let state = load();
   function normalizeState(s){
     const x=s&&typeof s==="object"?s:{};
-    return {
-      ...initial,
-      ...x,
-      settings:{...initial.settings,...(x.settings&&typeof x.settings==="object"?x.settings:{})},
-      customers:Array.isArray(x.customers)?x.customers:initial.customers,
-      services:Array.isArray(x.services)?x.services:initial.services,
-      quotes:Array.isArray(x.quotes)?x.quotes.map(q=>({...q,items:Array.isArray(q.items)?q.items:[]})):initial.quotes,
-      invoices:Array.isArray(x.invoices)?x.invoices:[]
+    const text=(v,max,fallback="")=>typeof v==="string"?v.slice(0,max):fallback;
+    const numeric=(v,fallback,min=0,max=1000000000,integer=false)=>{const value=Number(v);if(!Number.isFinite(value))return fallback;const safe=Math.min(max,Math.max(min,value));return integer?Math.round(safe):safe;};
+    const uniqueId=(value,prefix,used)=>{const id=typeof value==="string"&&/^[A-Za-z0-9_-]{1,100}$/.test(value)?value:"";if(id&&used.has(id))return null;const safe=id||uid(prefix);used.add(safe);return safe;};
+    const raw=x.settings&&typeof x.settings==="object"?x.settings:{};
+    const settings={
+      businessName:text(raw.businessName,100,initial.settings.businessName).trim()||initial.settings.businessName,
+      email:text(raw.email,254,initial.settings.email),
+      phone:text(raw.phone,64,initial.settings.phone),
+      currency:["USD","EUR","NOK"].includes(raw.currency)?raw.currency:initial.settings.currency,
+      taxRate:numeric(raw.taxRate,initial.settings.taxRate,0,100),
+      validityDays:numeric(raw.validityDays,initial.settings.validityDays,1,365,true),
+      nextQuote:numeric(raw.nextQuote,initial.settings.nextQuote,1,999999999,true),
+      aiMode:"Mock AI",emailMode:"Mock Email",paymentMode:"Mock Payments"
     };
+    const customerIds=new Set();
+    const customers=(Array.isArray(x.customers)?x.customers:initial.customers).slice(0,2000).filter(c=>c&&typeof c==="object"&&text(c.name,120).trim()).map(c=>{
+      const id=uniqueId(c.id,"c",customerIds);if(!id)return null;
+      return{id,name:text(c.name,120).trim(),email:text(c.email,254),phone:text(c.phone,64),address:text(c.address,250)};
+    }).filter(Boolean);
+    const serviceIds=new Set();
+    const services=(Array.isArray(x.services)?x.services:initial.services).slice(0,2000).filter(v=>v&&typeof v==="object"&&text(v.name,120).trim()).map(v=>{
+      const id=uniqueId(v.id,"s",serviceIds);if(!id)return null;
+      return{id,name:text(v.name,120).trim(),unit:text(v.unit,40,"job")||"job",category:text(v.category,80,"General")||"General",rate:numeric(v.rate,0,0,1000000000)};
+    }).filter(Boolean);
+    const quoteIds=new Set();
+    const statuses=["draft","sent","accepted","expired","invoiced"];
+    const quotes=(Array.isArray(x.quotes)?x.quotes:initial.quotes).slice(0,5000).filter(q=>q&&typeof q==="object").map(q=>{
+      const id=uniqueId(q.id,"q",quoteIds);if(!id)return null;
+      const itemIds=new Set();
+      const items=(Array.isArray(q.items)?q.items:[]).slice(0,200).filter(it=>it&&typeof it==="object"&&text(it.description,300).trim()).map(it=>{
+        const itemId=uniqueId(it.id,"i",itemIds);if(!itemId)return null;
+        return{id:itemId,description:text(it.description,300).trim(),qty:numeric(it.qty,1,0,1000000000),unit:text(it.unit,40,"job")||"job",rate:numeric(it.rate,0,0,1000000000)};
+      }).filter(Boolean);
+      const createdAt=typeof q.createdAt==="string"&&Number.isFinite(Date.parse(q.createdAt))?new Date(q.createdAt).toISOString():now();
+      return{id,number:text(q.number,40,"QP-0000"),customerId:text(q.customerId,100),service:text(q.service,160,"General service"),status:statuses.includes(q.status)?q.status:"draft",createdAt,discount:numeric(q.discount,0,0,100),tax:numeric(q.tax,0,0,100),notes:text(q.notes,2000),items};
+    }).filter(Boolean);
+    const quoteKeySet=new Set(quotes.map(q=>q.id)),invoiceIds=new Set();
+    const invoices=(Array.isArray(x.invoices)?x.invoices:[]).slice(0,5000).filter(inv=>inv&&typeof inv==="object"&&quoteKeySet.has(inv.quoteId)).map(inv=>{
+      const id=uniqueId(inv.id,"inv",invoiceIds);if(!id)return null;
+      return{id,number:text(inv.number,40,"INV-0000"),quoteId:inv.quoteId,status:["ready","sent","paid","void"].includes(inv.status)?inv.status:"ready",createdAt:typeof inv.createdAt==="string"&&Number.isFinite(Date.parse(inv.createdAt))?new Date(inv.createdAt).toISOString():now(),amount:numeric(inv.amount,0,0,1000000000000)};
+    }).filter(Boolean);
+    return{version:"0.5.0",settings,customers,services,quotes,invoices};
   }
   function load(){
     try{
