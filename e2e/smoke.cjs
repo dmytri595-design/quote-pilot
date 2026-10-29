@@ -17,7 +17,7 @@ const assert = require('node:assert/strict');
 
   // A quote must not save when a required field is missing.
   await page.goto(base + '#new', { waitUntil: 'networkidle' });
-  await expect(page.locator('#nq-customer')).toContainText('Emma Johnson');
+  assert.ok((await page.locator('#nq-customer').innerText()).includes('Emma Johnson'), 'customer selector should show names, not internal IDs');
   assert.equal(await page.locator('#nq-customer').inputValue(), 'c1');
   await page.locator('#nq-service').fill('');
   await page.locator('#save-quote').click();
