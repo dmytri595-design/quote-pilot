@@ -58,3 +58,10 @@ Deployment is handled by .github/workflows/deploy-pages.yml.
 ## Direct acquisition package
 
 See [`docs/DIRECT_ACQUISITION_BRIEF.md`](docs/DIRECT_ACQUISITION_BRIEF.md) for the sale scope, included assets, current limitations, handover plan, and rights terms. The root [`LICENSE`](LICENSE) is an evaluation notice, not an open-source license; commercial and production use requires a separate written agreement.
+
+## Two-site product setup
+
+- **Public product website:** https://quotepilot-brand.vercel.app/
+- **Main business application:** https://dmytri595-design.github.io/quote-pilot/
+
+The public website introduces the product and links to the existing application. The application remains the root homepage; its workflow and operational interface are kept separate from the promotional website. Website source: [website/index.html](website/index.html).
